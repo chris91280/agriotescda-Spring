@@ -1,6 +1,6 @@
 spring:
   datasource:
-    password: root
+    password: 
     url: jdbc:mysql://localhost:3306/agriotes_cda
     username: root
   jpa:

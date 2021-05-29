@@ -1,66 +1,65 @@
 package fr.greta91.cda.agriotes.helper;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 
-	
-	import java.io.BufferedReader;
-	import java.io.IOException;
-	import java.io.InputStream;
-	import java.io.InputStreamReader;
-	import java.io.PrintWriter;
-	import java.sql.Date;
-	import java.util.ArrayList;
-	import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 
-	
-	import org.springframework.web.multipart.MultipartFile;
-	import org.apache.commons.csv.CSVFormat;
-	import org.apache.commons.csv.CSVParser;
-	import org.apache.commons.csv.CSVRecord;
+import fr.greta91.cda.agriotes.model.Choix;
+import fr.greta91.cda.agriotes.model.Question;
 
-	import fr.greta91.cda.agriotes.model.Evaluation;
+public class CSVHelper {
+	public static String TYPE = "text/csv";
+//	static String[] HEADERS = { "question", "choix", "choixCorrecte" };
 
+	public static boolean hasCSVFormat(MultipartFile file) {
 
+		if (!TYPE.equals(file.getContentType())) {
+			return false;
+		}
 
-	public class CSVHelper {
-	  public static String TYPE = "text/csv";
-	  static String[] HEADERs = { "Id_evaluation", "dateDeCreation", "intitule", "note","csv_file" };
+		return true;
+	}
 
-	  public static boolean hasCSVFormat(MultipartFile file) {
+	public static List<Question> csvToQuestions(InputStream is) {
+		try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+				CSVParser csvParser = new CSVParser(fileReader,
+						CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());) {
 
-	    if (!TYPE.equals(file.getContentType())) {
-	      return false;
-	    }
+			List<Question> questions = new ArrayList<Question>();
 
-	    return true;
-	  }
+			Iterable<CSVRecord> csvRecords = csvParser.getRecords();
 
-	  public static List<Evaluation> csvToEvaluations(InputStream is) {
-	    try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-	        CSVParser csvParser = new CSVParser(fileReader,
-	            CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());) {
+			for (CSVRecord csvRecord : csvRecords) {
+				Question question = new Question();
+				question.setEnnonce(csvRecord.get("enonce"));
+				
+				String choixRaw = csvRecord.get("choix");
+				String[] choixArray = choixRaw.split("\\|");// sépare la chaine de caractère en 4 choix séparé par un |
+				for (String c : choixArray) {
+					Choix choix = new Choix();
+					choix.setChoix(c.trim());
+					question.addChoix(choix);
+				}
+				
+				Choix choixCorrect = new Choix();
+				choixCorrect.setChoix(csvRecord.get("choixCorrect"));
+				question.setChoixCorrect(choixCorrect);
+				
+				questions.add(question);
+			}
 
-	      List<Evaluation> Evaluations = new ArrayList<Evaluation>();
-
-	      Iterable<CSVRecord> csvRecords = csvParser.getRecords();
-
-	      for (CSVRecord csvRecord : csvRecords) {
-	        Evaluation Evaluation = new Evaluation(
-	              Integer.parseInt(csvRecord.get("Id")),
-	              Date.valueOf(csvRecord.get("dateDeCreation")),
-	              csvRecord.get("intitule"),
-	              Integer.parseInt(csvRecord.get("note")) , 
-	              csvRecord.get("csv_file")
-	              
-	            );
-
-	        Evaluations.add(Evaluation);
-	      }
-
-	      return Evaluations;
-	    } catch (IOException e) {
-	      throw new RuntimeException("fail to parse CSV file: " + e.getMessage());
-	    }
-	  }
-
+			return questions;
+		} catch (IOException e) {
+			throw new RuntimeException("fail to parse CSV file: " + e.getMessage());
+		}
+	}
 
 }

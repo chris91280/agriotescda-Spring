@@ -1,11 +1,14 @@
 package fr.greta91.cda.agriotes.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 import fr.greta91.cda.agriotes.helper.CSVHelper;
 import fr.greta91.cda.agriotes.message.ResponseMessage;
 import fr.greta91.cda.agriotes.model.Evaluation;
+import fr.greta91.cda.agriotes.model.Question;
 import fr.greta91.cda.agriotes.repo.EvaluationRepository;
-import fr.greta91.cda.agriotes.services.CSVService;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +37,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api")
 public class EvaluationController {
-	@Autowired
-	  CSVService fileService;
-
+	private static final Logger LOGGER = LoggerFactory.getLogger(EvaluationController.class);
 	@Autowired
 	EvaluationRepository evaluationRepo;
 	@GetMapping("/public/evaluations")
@@ -85,14 +87,44 @@ public class EvaluationController {
 		}
 	}
 	
+//	@PostMapping("/formateur/evaluations/create")
+//	public ResponseEntity<Evaluation> createEvaluation(@RequestBody Evaluation Evaluation ) {
+//		
+//		try {
+//			Evaluation newEvaluation = evaluationRepo.save(Evaluation);
+//			return ResponseEntity.ok(newEvaluation);
+//		} catch (Exception e) {
+//			return ResponseEntity.badRequest().build();
+//		}
+//			
+//	}
+	@Transactional
 	@PostMapping("/formateur/evaluations/create")
-	public ResponseEntity<Evaluation> createEvaluation(@RequestBody Evaluation Evaluation ) {
-		
-		
+	public ResponseEntity<ResponseMessage> createEvaluation(@RequestParam("file") MultipartFile file, 
+																@RequestParam("intitule") String intitule,
+																@RequestParam("duree") int duree,
+																@RequestParam("description") String description
+																) {
+		LOGGER.error("dans createEvaluation");
+		LOGGER.error("intitule " + intitule);
 		try {
-			Evaluation newEvaluation = evaluationRepo.save(Evaluation);
-			return ResponseEntity.ok(newEvaluation);
+//			if(!CSVHelper.hasCSVFormat(file)) throw new Exception();
+			
+			List<Question> questions = CSVHelper.csvToQuestions(file.getInputStream());
+			
+			Evaluation eval = new Evaluation();
+	        eval.setIntitule(intitule);
+	        eval.setDescription(description);
+	        eval.setCsv_file(file.getOriginalFilename());
+	        eval.setDateDeCreation(new Date());
+	        eval.setQuestions(questions);
+	        evaluationRepo.save(eval);
+		    
+			String message = "Uploaded the file successfully: " + file.getOriginalFilename();
+	        
+	        return ResponseEntity.status(HttpStatus.OK).body(new ResponseMessage(message));
 		} catch (Exception e) {
+			LOGGER.error(e.toString());
 			return ResponseEntity.badRequest().build();
 		}
 			
